@@ -7,6 +7,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -32,7 +33,7 @@ public class UmEventManager {
     private static final String PAGE_DESTROY = "PageDestroy";
     private final Map<String, String> map = new HashMap<>();
     private String mChildId;
-    private boolean eventInit;
+    private boolean showLog;
 
     public static UmEventManager getInstance() {
         return BuryingPointManagerHolder.INSTANCE;
@@ -61,14 +62,21 @@ public class UmEventManager {
         initUmEvent(application, childId);
     }
 
+    public void setLogEnable(boolean showLog) {
+        this.showLog = showLog;
+        UMConfigure.setLogEnabled(showLog);
+    }
+
     private void initUmEvent(Application application, String childId) {
-        eventInit = true;
         mChildId = childId;
         Context context = application.getApplicationContext();
         application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
                 String pageName = activity.getComponentName().getClassName();
+                if (showLog) {
+                    Log.d("UmEventManager", "onActivityCreated = " + pageName);
+                }
                 String uuid = UUID.randomUUID().toString();
                 map.put(PAGE_CREATE + pageName, uuid);
                 postUmEvent(context, PAGE_CREATE, pageName, uuid);
@@ -145,9 +153,6 @@ public class UmEventManager {
      */
     public void homePageExit(Activity activity) {
         MobclickAgent.onKillProcess(activity);
-        if (!eventInit) {
-            return;
-        }
         String pageName = activity.getComponentName().getClassName();
         String uuid = map.get(PAGE_RESUME + pageName);
         if (!TextUtils.isEmpty(uuid)) {
