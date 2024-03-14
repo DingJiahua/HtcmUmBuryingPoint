@@ -7,7 +7,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -136,7 +135,6 @@ public class UmEventManager {
         Map<String, Object> params = new HashMap<>();
         params.put("pageName", pageName + "_" + uuid + "_" + mChildId);
         params.put("timeMillis", uuid + "_" + mChildId + "_" + System.currentTimeMillis());
-        Log.e("UmEventManager", "UmEvent = " + params);
         MobclickAgent.onEventObject(context, eventId, params);
     }
 
