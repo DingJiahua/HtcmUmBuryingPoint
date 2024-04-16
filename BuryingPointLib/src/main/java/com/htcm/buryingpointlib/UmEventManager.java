@@ -18,7 +18,9 @@ import com.umeng.commonsdk.UMConfigure;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,6 +36,8 @@ public class UmEventManager {
     private final Map<String, String> map = new HashMap<>();
     private String mChildId;
     private boolean showLog;
+    private final List<String> commonPageList = new ArrayList<>();
+    private final Map<String, String> commonPageSuffixMap = new HashMap<>();
 
     public static UmEventManager getInstance() {
         return BuryingPointManagerHolder.INSTANCE;
@@ -54,7 +58,8 @@ public class UmEventManager {
             JSONObject jsonObject = new JSONObject(jsonInfo);
             childId = jsonObject.getString("childId");
         } catch (JSONException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
+            return;
         }
         if (TextUtils.isEmpty(childId)) {
             return;
@@ -67,13 +72,26 @@ public class UmEventManager {
         UMConfigure.setLogEnabled(showLog);
     }
 
+    public void setCommonPageList(List<Class<Activity>> commonClassList) {
+        for (Class<?> item : commonClassList) {
+            String pageName = item.getName();
+            if (!commonPageList.contains(pageName)) {
+                commonPageList.add(item.getName());
+            }
+        }
+    }
+
+    public void setCommonPageSuffix(Class<Activity> activityClass, String suffix) {
+        commonPageSuffixMap.put(activityClass.getName(), suffix);
+    }
+
     private void initUmEvent(Application application, String childId) {
         mChildId = childId;
         Context context = application.getApplicationContext();
         application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
-                String pageName = activity.getComponentName().getClassName();
+                String pageName = getPageName(activity);
                 if (showLog) {
                     Log.d("UmEventManager", "onActivityCreated = " + pageName);
                 }
@@ -89,7 +107,7 @@ public class UmEventManager {
 
             @Override
             public void onActivityResumed(@NonNull Activity activity) {
-                String pageName = activity.getComponentName().getClassName();
+                String pageName = getPageName(activity);
                 String uuid = UUID.randomUUID().toString();
                 map.put(PAGE_RESUME + pageName, uuid);
                 postUmEvent(context, PAGE_RESUME, pageName, uuid);
@@ -97,7 +115,7 @@ public class UmEventManager {
 
             @Override
             public void onActivityPaused(@NonNull Activity activity) {
-                String pageName = activity.getComponentName().getClassName();
+                String pageName = getPageName(activity);
                 String uuid = map.get(PAGE_RESUME + pageName);
                 if (!TextUtils.isEmpty(uuid)) {
                     map.remove(PAGE_RESUME + pageName);
@@ -117,7 +135,7 @@ public class UmEventManager {
 
             @Override
             public void onActivityDestroyed(@NonNull Activity activity) {
-                String pageName = activity.getComponentName().getClassName();
+                String pageName = getPageName(activity);
                 String uuid = map.get(PAGE_CREATE + pageName);
                 if (!TextUtils.isEmpty(uuid)) {
                     map.remove(PAGE_CREATE + pageName);
@@ -125,6 +143,15 @@ public class UmEventManager {
                 }
             }
         });
+    }
+
+    private String getPageName(Activity activity) {
+        String pageName = activity.getComponentName().getClassName();
+        // 跳转activity属于公共复用页面，则另外加上后缀
+        if (commonPageList.contains(pageName)) {
+            pageName += commonPageSuffixMap.get(pageName);
+        }
+        return pageName;
     }
 
     public void setChildId(String childId) {
