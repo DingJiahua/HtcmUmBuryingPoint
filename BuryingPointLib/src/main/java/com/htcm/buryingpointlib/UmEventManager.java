@@ -72,7 +72,7 @@ public class UmEventManager {
         UMConfigure.setLogEnabled(showLog);
     }
 
-    public void setCommonPageList(List<Class<Activity>> commonClassList) {
+    public void setCommonPageList(List<Class<? extends Activity>> commonClassList) {
         for (Class<?> item : commonClassList) {
             String pageName = item.getName();
             if (!commonPageList.contains(pageName)) {
@@ -81,7 +81,7 @@ public class UmEventManager {
         }
     }
 
-    public void setCommonPageSuffix(Class<Activity> activityClass, String suffix) {
+    public void setCommonPageSuffix(Class<? extends Activity> activityClass, String suffix) {
         commonPageSuffixMap.put(activityClass.getName(), suffix);
     }
 
