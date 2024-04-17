@@ -36,8 +36,9 @@ public class UmEventManager {
     private final Map<String, String> map = new HashMap<>();
     private String mChildId;
     private boolean showLog;
-    private final List<String> commonPageList = new ArrayList<>();
     private final Map<String, String> commonPageSuffixMap = new HashMap<>();
+    private final Map<String, Object> params = new HashMap<>();
+    private final List<String> reusableParams = new ArrayList<>();
 
     public static UmEventManager getInstance() {
         return BuryingPointManagerHolder.INSTANCE;
@@ -72,15 +73,6 @@ public class UmEventManager {
         UMConfigure.setLogEnabled(showLog);
     }
 
-    public void setCommonPageList(List<Class<? extends Activity>> commonClassList) {
-        for (Class<?> item : commonClassList) {
-            String pageName = item.getName();
-            if (!commonPageList.contains(pageName)) {
-                commonPageList.add(item.getName());
-            }
-        }
-    }
-
     public void setCommonPageSuffix(Class<? extends Activity> activityClass, String suffix) {
         commonPageSuffixMap.put(activityClass.getName(), suffix);
     }
@@ -92,9 +84,6 @@ public class UmEventManager {
             @Override
             public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
                 String pageName = getPageName(activity);
-                if (showLog) {
-                    Log.d("UmEventManager", "onActivityCreated = " + pageName);
-                }
                 String uuid = UUID.randomUUID().toString();
                 map.put(PAGE_CREATE + pageName, uuid);
                 postUmEvent(context, PAGE_CREATE, pageName, uuid);
@@ -148,8 +137,9 @@ public class UmEventManager {
     private String getPageName(Activity activity) {
         String pageName = activity.getComponentName().getClassName();
         // 跳转activity属于公共复用页面，则另外加上后缀
-        if (commonPageList.contains(pageName)) {
-            pageName += commonPageSuffixMap.get(pageName);
+        String suffix = commonPageSuffixMap.get(pageName);
+        if (suffix != null) {
+            pageName += suffix;
         }
         return pageName;
     }
@@ -167,10 +157,21 @@ public class UmEventManager {
      * @param uuid     一组对应事件的uuid
      */
     private void postUmEvent(Context context, String eventId, String pageName, String uuid) {
-        Map<String, Object> params = new HashMap<>();
-        params.put("pageName", pageName + "_" + uuid + "_" + mChildId);
-        params.put("timeMillis", uuid + "_" + mChildId + "_" + System.currentTimeMillis());
+        params.clear();
+        reusableParams.clear();
+        reusableParams.add(pageName);
+        reusableParams.add(uuid);
+        reusableParams.add(mChildId);
+        params.put("pageName", TextUtils.join("_", reusableParams));
+        reusableParams.clear();
+        reusableParams.add(uuid);
+        reusableParams.add(mChildId);
+        reusableParams.add(String.valueOf(System.currentTimeMillis()));
+        params.put("timeMillis", TextUtils.join("_", reusableParams));
         MobclickAgent.onEventObject(context, eventId, params);
+        if (showLog) {
+            Log.d("UmEventManager", "UmParams = " + params);
+        }
     }
 
     /**
