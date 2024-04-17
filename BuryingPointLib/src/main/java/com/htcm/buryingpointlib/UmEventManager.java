@@ -170,7 +170,7 @@ public class UmEventManager {
         params.put("timeMillis", TextUtils.join("_", reusableParams));
         MobclickAgent.onEventObject(context, eventId, params);
         if (showLog) {
-            Log.d("UmEventManager", "UmParams = " + params);
+            Log.d("UmEventManager", "EventId = " + eventId + " UmParams = " + params);
         }
     }
 
