@@ -29,10 +29,10 @@ import java.util.UUID;
  * Create Date 2024/3/11
  */
 public class UmEventManager {
-    private static final String PAGE_CREATE = "PageCreate";
-    private static final String PAGE_RESUME = "PageResume";
-    private static final String PAGE_PAUSE = "PagePause";
-    private static final String PAGE_DESTROY = "PageDestroy";
+    public static final String PAGE_CREATE = "PageCreate";
+    public static final String PAGE_RESUME = "PageResume";
+    public static final String PAGE_PAUSE = "PagePause";
+    public static final String PAGE_DESTROY = "PageDestroy";
     private final Map<String, String> map = new HashMap<>();
     private String mChildId;
     private boolean showLog;
@@ -73,6 +73,11 @@ public class UmEventManager {
         UMConfigure.setLogEnabled(showLog);
     }
 
+    /**
+     * 设置应用内公共复用的Activity后缀
+     * @param activityClass 页面
+     * @param suffix 后缀
+     */
     public void setCommonPageSuffix(Class<? extends Activity> activityClass, String suffix) {
         commonPageSuffixMap.put(activityClass.getName(), suffix);
     }
@@ -84,9 +89,7 @@ public class UmEventManager {
             @Override
             public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
                 String pageName = getPageName(activity);
-                String uuid = UUID.randomUUID().toString();
-                map.put(PAGE_CREATE + pageName, uuid);
-                postUmEvent(context, PAGE_CREATE, pageName, uuid);
+                enterEventQueue(context, PAGE_CREATE, pageName);
             }
 
             @Override
@@ -97,19 +100,13 @@ public class UmEventManager {
             @Override
             public void onActivityResumed(@NonNull Activity activity) {
                 String pageName = getPageName(activity);
-                String uuid = UUID.randomUUID().toString();
-                map.put(PAGE_RESUME + pageName, uuid);
-                postUmEvent(context, PAGE_RESUME, pageName, uuid);
+                enterEventQueue(context, PAGE_RESUME, pageName);
             }
 
             @Override
             public void onActivityPaused(@NonNull Activity activity) {
                 String pageName = getPageName(activity);
-                String uuid = map.get(PAGE_RESUME + pageName);
-                if (!TextUtils.isEmpty(uuid)) {
-                    map.remove(PAGE_RESUME + pageName);
-                    postUmEvent(context, PAGE_PAUSE, pageName, uuid);
-                }
+                quitEventQueue(context, PAGE_PAUSE, pageName);
             }
 
             @Override
@@ -125,13 +122,45 @@ public class UmEventManager {
             @Override
             public void onActivityDestroyed(@NonNull Activity activity) {
                 String pageName = getPageName(activity);
-                String uuid = map.get(PAGE_CREATE + pageName);
-                if (!TextUtils.isEmpty(uuid)) {
-                    map.remove(PAGE_CREATE + pageName);
-                    postUmEvent(context, PAGE_DESTROY, pageName, uuid);
-                }
+                quitEventQueue(context, PAGE_DESTROY, pageName);
             }
         });
+    }
+
+    /**
+     * 进入事件集合
+     *
+     * @param context  上下文
+     * @param eventId  事件ID onCreate onResume
+     * @param pageName 页面名称
+     */
+    private void enterEventQueue(Context context, String eventId, String pageName) {
+        String uuid = UUID.randomUUID().toString();
+        map.put(eventId + pageName, uuid);
+        postUmEvent(context, eventId, pageName, uuid);
+    }
+
+    /**
+     * 移除事件
+     *
+     * @param context  上下文
+     * @param eventId  事件ID onPause onDestroy
+     * @param pageName 页面名称
+     */
+    private void quitEventQueue(Context context, String eventId, String pageName) {
+        if (eventId.equals(PAGE_PAUSE)) {
+            String uuid = map.get(PAGE_RESUME + pageName);
+            if (!TextUtils.isEmpty(uuid)) {
+                map.remove(PAGE_RESUME + pageName);
+                postUmEvent(context, PAGE_PAUSE, pageName, uuid);
+            }
+        } else if (eventId.equals(PAGE_DESTROY)) {
+            String uuid = map.get(PAGE_CREATE + pageName);
+            if (!TextUtils.isEmpty(uuid)) {
+                map.remove(PAGE_CREATE + pageName);
+                postUmEvent(context, PAGE_DESTROY, pageName, uuid);
+            }
+        }
     }
 
     private String getPageName(Activity activity) {
@@ -171,6 +200,29 @@ public class UmEventManager {
         MobclickAgent.onEventObject(context, eventId, params);
         if (showLog) {
             Log.d("UmEventManager", "EventId = " + eventId + " UmParams = " + params);
+        }
+    }
+
+    /**
+     * 公共复用页面，且参数是由外部传入，需要自行在对应生命周期调用事件上报
+     *
+     * @param activity 页面
+     * @param eventId  事件ID
+     * @param suffix   后缀
+     */
+    public void setEventSelf(Activity activity, String eventId, String suffix) {
+        String pageName = activity.getComponentName().getClassName() + suffix;
+        switch (eventId) {
+            case PAGE_CREATE:
+            case PAGE_RESUME:
+                enterEventQueue(activity, eventId, pageName);
+                break;
+            case PAGE_PAUSE:
+            case PAGE_DESTROY:
+                quitEventQueue(activity, eventId, pageName);
+                break;
+            default:
+                break;
         }
     }
 
