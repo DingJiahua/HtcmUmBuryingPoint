@@ -39,6 +39,7 @@ public class UmEventManager {
     private final Map<String, String> commonPageSuffixMap = new HashMap<>();
     private final Map<String, Object> params = new HashMap<>();
     private final List<String> reusableParams = new ArrayList<>();
+    private List<Class<? extends Activity>> specialPageList = new ArrayList<>();
 
     public static UmEventManager getInstance() {
         return BuryingPointManagerHolder.INSTANCE;
@@ -75,21 +76,34 @@ public class UmEventManager {
 
     /**
      * 设置应用内公共复用的Activity后缀
+     *
      * @param activityClass 页面
-     * @param suffix 后缀
+     * @param suffix        后缀
      */
     public void setCommonPageSuffix(Class<? extends Activity> activityClass, String suffix) {
         commonPageSuffixMap.put(activityClass.getName(), suffix);
     }
 
+    /**
+     * 设置需要自行管理埋点事件的Activity集合
+     *
+     * @param classList Activity集合
+     */
+    public void setExternalMultiEntrancePageList(List<Class<? extends Activity>> classList) {
+        specialPageList = classList;
+    }
+
+    @SuppressWarnings("SuspiciousMethodCalls")
     private void initUmEvent(Application application, String childId) {
         mChildId = childId;
         Context context = application.getApplicationContext();
         application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
-                String pageName = getPageName(activity);
-                enterEventQueue(context, PAGE_CREATE, pageName);
+                if (!specialPageList.contains(activity)) {
+                    String pageName = getPageName(activity);
+                    enterEventQueue(context, PAGE_CREATE, pageName);
+                }
             }
 
             @Override
@@ -99,14 +113,18 @@ public class UmEventManager {
 
             @Override
             public void onActivityResumed(@NonNull Activity activity) {
-                String pageName = getPageName(activity);
-                enterEventQueue(context, PAGE_RESUME, pageName);
+                if (!specialPageList.contains(activity)) {
+                    String pageName = getPageName(activity);
+                    enterEventQueue(context, PAGE_RESUME, pageName);
+                }
             }
 
             @Override
             public void onActivityPaused(@NonNull Activity activity) {
-                String pageName = getPageName(activity);
-                quitEventQueue(context, PAGE_PAUSE, pageName);
+                if (!specialPageList.contains(activity)) {
+                    String pageName = getPageName(activity);
+                    quitEventQueue(context, PAGE_PAUSE, pageName);
+                }
             }
 
             @Override
@@ -121,8 +139,10 @@ public class UmEventManager {
 
             @Override
             public void onActivityDestroyed(@NonNull Activity activity) {
-                String pageName = getPageName(activity);
-                quitEventQueue(context, PAGE_DESTROY, pageName);
+                if (!specialPageList.contains(activity)) {
+                    String pageName = getPageName(activity);
+                    quitEventQueue(context, PAGE_DESTROY, pageName);
+                }
             }
         });
     }
