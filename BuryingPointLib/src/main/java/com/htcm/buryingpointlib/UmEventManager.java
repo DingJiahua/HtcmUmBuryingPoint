@@ -93,14 +93,13 @@ public class UmEventManager {
         specialPageList = classList;
     }
 
-    @SuppressWarnings("SuspiciousMethodCalls")
     private void initUmEvent(Application application, String childId) {
         mChildId = childId;
         Context context = application.getApplicationContext();
         application.registerActivityLifecycleCallbacks(new Application.ActivityLifecycleCallbacks() {
             @Override
             public void onActivityCreated(@NonNull Activity activity, @Nullable Bundle savedInstanceState) {
-                if (!specialPageList.contains(activity)) {
+                if (!specialPageList.contains(activity.getClass())) {
                     String pageName = getPageName(activity);
                     enterEventQueue(context, PAGE_CREATE, pageName);
                 }
@@ -113,7 +112,7 @@ public class UmEventManager {
 
             @Override
             public void onActivityResumed(@NonNull Activity activity) {
-                if (!specialPageList.contains(activity)) {
+                if (!specialPageList.contains(activity.getClass())) {
                     String pageName = getPageName(activity);
                     enterEventQueue(context, PAGE_RESUME, pageName);
                 }
@@ -121,7 +120,7 @@ public class UmEventManager {
 
             @Override
             public void onActivityPaused(@NonNull Activity activity) {
-                if (!specialPageList.contains(activity)) {
+                if (!specialPageList.contains(activity.getClass())) {
                     String pageName = getPageName(activity);
                     quitEventQueue(context, PAGE_PAUSE, pageName);
                 }
@@ -139,7 +138,7 @@ public class UmEventManager {
 
             @Override
             public void onActivityDestroyed(@NonNull Activity activity) {
-                if (!specialPageList.contains(activity)) {
+                if (!specialPageList.contains(activity.getClass())) {
                     String pageName = getPageName(activity);
                     quitEventQueue(context, PAGE_DESTROY, pageName);
                 }
