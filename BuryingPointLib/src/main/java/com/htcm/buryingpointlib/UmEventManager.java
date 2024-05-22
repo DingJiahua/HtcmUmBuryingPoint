@@ -40,6 +40,7 @@ public class UmEventManager {
     private final Map<String, Object> params = new HashMap<>();
     private final List<String> reusableParams = new ArrayList<>();
     private List<Class<? extends Activity>> specialPageList = new ArrayList<>();
+    private final JSONObject jsonObject = new JSONObject();
 
     public static UmEventManager getInstance() {
         return BuryingPointManagerHolder.INSTANCE;
@@ -50,15 +51,17 @@ public class UmEventManager {
         UMConfigure.init(application.getApplicationContext(), appKey, Build.MODEL, UMConfigure.DEVICE_TYPE_PHONE, "");
         MobclickAgent.setPageCollectionMode(MobclickAgent.PageMode.AUTO);
 
-        String serverEnv = Settings.Global.getString(application.getContentResolver(), "dolphin_env");
-        if (!TextUtils.isEmpty(serverEnv) && serverEnv.equals("test")) {
-            return;
-        }
         String jsonInfo = Settings.Global.getString(application.getContentResolver(), "htcm_launcher_user_info");
         String childId;
+        String sn;
+        String token;
+        String parentId;
         try {
             JSONObject jsonObject = new JSONObject(jsonInfo);
             childId = jsonObject.getString("childId");
+            sn = jsonObject.getString("deviceToken");
+            token = jsonObject.getString("dolphinToken");
+            parentId = jsonObject.getString("parentId");
         } catch (JSONException e) {
             e.printStackTrace();
             return;
@@ -66,6 +69,11 @@ public class UmEventManager {
         if (TextUtils.isEmpty(childId)) {
             return;
         }
+        String serverEnv = Settings.Global.getString(application.getContentResolver(), "dolphin_env");
+        boolean debugEnv;
+        debugEnv = !TextUtils.isEmpty(serverEnv) && serverEnv.equals("test");
+
+        HttpClient.getInstance().init(sn, parentId, token, debugEnv);
         initUmEvent(application, childId);
     }
 
@@ -205,6 +213,7 @@ public class UmEventManager {
      * @param uuid     一组对应事件的uuid
      */
     private void postUmEvent(Context context, String eventId, String pageName, String uuid) {
+        String timestamp = String.valueOf(System.currentTimeMillis());
         params.clear();
         reusableParams.clear();
         reusableParams.add(pageName);
@@ -214,11 +223,23 @@ public class UmEventManager {
         reusableParams.clear();
         reusableParams.add(uuid);
         reusableParams.add(mChildId);
-        reusableParams.add(String.valueOf(System.currentTimeMillis()));
+        reusableParams.add(timestamp);
         params.put("timeMillis", TextUtils.join("_", reusableParams));
         MobclickAgent.onEventObject(context, eventId, params);
         if (showLog) {
             Log.d("UmEventManager", "EventId = " + eventId + " UmParams = " + params);
+        }
+        if (eventId.equals(PAGE_RESUME) || eventId.equals(PAGE_PAUSE)) {
+            try {
+                jsonObject.put("activity", pageName);
+                jsonObject.put("childId", Integer.parseInt(mChildId));
+                jsonObject.put("eventName", eventId);
+                jsonObject.put("timestamp", timestamp);
+                jsonObject.put("uuid", uuid);
+                HttpClient.getInstance().post(HttpClient.URL_EVENT_LOG, jsonObject.toString());
+            } catch (JSONException | NumberFormatException e) {
+                e.printStackTrace();
+            }
         }
     }
 

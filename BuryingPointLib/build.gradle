@@ -35,8 +35,9 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
 
-    implementation  'com.umeng.umsdk:common:9.6.5'
-    implementation  'com.umeng.umsdk:asms:1.8.0'
+    implementation 'com.umeng.umsdk:common:9.6.5'
+    implementation 'com.umeng.umsdk:asms:1.8.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
 }
 
 afterEvaluate {
