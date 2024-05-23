@@ -80,7 +80,7 @@ public class HttpClient {
 
         @Override
         public void onResponse(@NonNull Call call, @NonNull Response response) {
-
+            response.close();
         }
     };
 }
